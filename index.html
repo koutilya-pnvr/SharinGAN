@@ -12,7 +12,8 @@
     <link href="mainpage.css" rel="stylesheet">
 </head>
 <body>
-	
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	</meta>
 <div id="header" class="container-fluid">
     <div class="row" style="text-align:center;padding:0;margin:0">
         <h1>SharinGAN: Combining Synthetic and Real Data for Unsupervised Geometry Estimation</h1>
@@ -38,19 +39,19 @@
 We  propose  a  novel  method  for  combining  syntheticand real images when training networks to determine geometric  information  from  a  single  image. We  suggest a  method  for  mapping  both  image  types  into  a  single, shared  domain. This  is  connected  to  a  primary  network  for  end-to-end  training.   Ideally,  this  results  in  images  from  two  domains  that  present  shared  information to  the  primary  network. Our  experiments  demonstrate significant  improvements  over  the  state-of-the-art  in  two important  domains,  surface  normal  estimation  of  human faces and monocular depth estimation for outdoor scenes, both  in  an  unsupervised  setting. </div>
 
 <div>
-        <table align=center width=1000px>
+        <table align=center width="75%"><!--1000px-->
             <tr>
-                <td width=600px>
+                <td width="75%"><!--600px-->
                   <center>
 					  <h2>Idea</h2>
-                      <a href="./introduction_new.pdf"><img src = "./introduction_new.pdf" width="500px"></img></href></a><br>
+                      <a href="./introduction_new.pdf"><img src = "./introduction_new.pdf" width="50%"></img></href></a><br><!--500px-->
 					</center>
 					
                 </td>
             </tr>
 		
 			<tr>
-                <td width=600px>
+                <td width="75%"><!--600px-->
 <!--                   <center> -->
                       <i>We propose to reduce the domain gap between synthetic  and  real  by  mapping  the  corresponding  domain specific information related to the primary task (δ<sub>s</sub> , δ<sub>r</sub>) into shared information δ<sub>sh</sub>, preserving everything else.</i><br><br>
 <!--                 </center> 	-->
@@ -58,15 +59,15 @@ We  propose  a  novel  method  for  combining  syntheticand real images when tra
             </tr>
 
             <tr>
-                <td width=600px>
+                <td width="75%"><!--600px-->
                   <center>
 					  <h2>Method</h2>
-                  		<a href="./SharinGAN_new.pdf"><img src = "./SharinGAN_new.pdf" width="1000px"></img></href></a><br>
+                  		<a href="./SharinGAN_new.pdf"><img src = "./SharinGAN_new.pdf" width="75%"></img></href></a><br><!--1000px-->
                 </center>
                 </td>
             </tr>
             </tr>
-                <td width=600px>
+                <td width="75%"><!--600px-->
                    <center> 
                       <i>Overview of the proposed architecture.</i>
                  </center> 
@@ -105,7 +106,7 @@ We  propose  a  novel  method  for  combining  syntheticand real images when tra
     </center>
     <div>
          <center>
-			 <a href="./mde_results1.pdf"><img src="./mde_results1.pdf" width="1000px"></img></href></a><br>
+			 <a href="./mde_results1.pdf"><img src="./mde_results1.pdf" width="75%"></img></href></a><br><!--1000px-->
           </center>
             <span class="abstract">We show qualitative comparison with <a href="https://github.com/sshan-zhao/GASDA" target="new">GASDA</a> on eigen test split of KITTI dataset. Notice that our method estimates better depth map and is relatively closer to the ground truth. The primary difference between our approach and GASDA is the presence of the SharinGAN module that presents a shared domain to the primary network. </span><br>        
      </div>
@@ -117,7 +118,7 @@ We  propose  a  novel  method  for  combining  syntheticand real images when tra
     </center>
 	<div>
          <center>
-			 <a href="./mde_make3d1.pdf"><img src="./mde_make3d1.pdf" width="1000px"></img></href></a><br>
+			 <a href="./mde_make3d1.pdf"><img src="./mde_make3d1.pdf" width="75%"></img></href></a><br><!--1000px-->
           </center>
             <span class="abstract">We also show the generalization of our approach to a completely unseen dataset, Make3D and compare it with <a href="https://github.com/sshan-zhao/GASDA" target="new">GASDA</a>. We were able to capitalize on mapping to the shared domain that boosts the generalization performance of the primary network to unseen domains. </span><br>        
      </div>
@@ -127,7 +128,7 @@ We  propose  a  novel  method  for  combining  syntheticand real images when tra
     <div>
          <center>
 			 <h2>Qualitative results for Face Normal Estimation</h2>
-            <a href="./fne_results1.pdf"><img src="./fne_results1.pdf" width="500px"></img></href></a><br>
+            <a href="./fne_results1.pdf"><img src="./fne_results1.pdf" width="40%"></img></href></a><br><!--500px-->
           </center>
             <span class="abstract">We also show the efficacy of our approach for predicting face normals and we qualitatively compare it with <a href="https://senguptaumd.github.io/SfSNet/" target="new">SfsNet</a> on the testset of the Photoface dataset.</span>        
      </div>
