@@ -10,7 +10,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms as tr, utils
 import cv2
 from tqdm import tqdm
-import lycon
 from skimage.morphology import binary_closing, disk
 import torchvision.transforms.functional as F
 import random
@@ -51,7 +50,7 @@ class to_tensor():
         return depth_tensor/8000.0
 
 class VKitti(Dataset):
-    def __init__(self, root_dir='/vulcan/scratch/koutilya/Virtual_Kitti', train=True, depth_resize='bicubic'):
+    def __init__(self, root_dir='/vulcanscratch/koutilya/Virtual_Kitti', train=True, depth_resize='bicubic'):
         self.root_dir = root_dir
         self.train = train
         self.paired_transform = Paired_transform()
@@ -71,7 +70,7 @@ class VKitti(Dataset):
         
         with open(self.file,'r') as f:
             self.filepaths = f.readlines()
-            self.filepaths = [fi.split('\n')[0] for fi in self.filepaths]
+            self.filepaths = [fi.split('\n')[0].replace('vulcan/scratch', 'vulcanscratch') for fi in self.filepaths]
 
     def __len__(self):
         return len(self.filepaths)

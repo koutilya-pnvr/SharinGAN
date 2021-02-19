@@ -9,7 +9,6 @@ import matplotlib
 import matplotlib.cm
 from PIL import Image
 import cv2
-import imageio
 from scipy.misc import imsave
 import time
 
@@ -160,9 +159,9 @@ class Solver():
         self.real_val_sample_images = Variable(self.real_val_sample_images.cuda())
 
     def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_da-'+str(self.iteration)+'.pth.tar' ))
+        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_da-'+str(self.iteration)+'.pth.tar' ))
         if len(saved_models)>0:
-            saved_iters = [int(s.split('-')[2].split('.')[0]) for s in saved_models]
+            saved_iters = [int(s.split('-')[-1].split('.')[0]) for s in saved_models]
             recent_id = saved_iters.index(max(saved_iters))
             saved_model = saved_models[recent_id]
             print(saved_model)
@@ -190,7 +189,7 @@ class Solver():
             
 
     def get_depth_manually(self, depth_file):
-        root_dir = '/vulcan/scratch/koutilya/kitti/Depth_from_velodyne_npy/'
+        root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne_npy/'
         # root_dir = '/vulcan/scratch/koutilya/kitti/Depth_from_velodyne/'
         depth_split = depth_file.split('/')
         # main_file = osp.join(root_dir, 'test', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.png')
