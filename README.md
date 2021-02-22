@@ -12,7 +12,7 @@ The environment.yml file is also provided for one to replicate the environment.
 We added the training and validation codes for both the tasks of Monocular Depth Estimation and Face Normal Estimation. We hope to improve the repository with time. We appreciate your inputs and feedback
 
 ## Monocular Depth Estimation
-The trained model for the monocular depth estimation task is availabe <a href="https://drive.google.com/file/d/13fu5SMRQxRGpsMJUmhRv3haAKmi__ofR/view?usp=sharing">here</a>.
+The trained model for the monocular depth estimation task is availabe <a href="https://drive.google.com/file/d/13fu5SMRQxRGpsMJUmhRv3haAKmi__ofR/view?usp=sharing">here</a>. Place this saved model file inside a newly created folder Monocular_Depth_Estimation/saved_models.
 
 The dataset files required for the Kitti_dataloader.py and VKitti_dataloader.py are made available at Monocular_Depth_Estimation/dataset_files/.
 
