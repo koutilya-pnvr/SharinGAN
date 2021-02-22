@@ -70,13 +70,13 @@ class VKitti(Dataset):
         
         with open(self.file,'r') as f:
             self.filepaths = f.readlines()
-            self.filepaths = [fi.split('\n')[0].replace('vulcan/scratch', 'vulcanscratch') for fi in self.filepaths]
+            self.filepaths = [fi.split('\n')[0] for fi in self.filepaths]
 
     def __len__(self):
         return len(self.filepaths)
     
     def __getitem__(self,idx):
-        filename = self.filepaths[idx]
+        filename = os.path.join(self.root_dir, self.filepaths[idx])
         image = Image.open(filename).convert('RGB')
         depth = Image.open(filename.replace('rgb','depthgt'))
         image = image.resize([640,192], Image.BICUBIC)

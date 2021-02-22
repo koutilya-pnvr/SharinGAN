@@ -190,7 +190,7 @@ class Solver():
 
     def get_depth_manually(self, depth_file):
         root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne_npy/'
-        # root_dir = '/vulcan/scratch/koutilya/kitti/Depth_from_velodyne/'
+        # root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne/'
         depth_split = depth_file.split('/')
         # main_file = osp.join(root_dir, 'test', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.png')
         main_file = osp.join(root_dir, 'test', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.npy')
