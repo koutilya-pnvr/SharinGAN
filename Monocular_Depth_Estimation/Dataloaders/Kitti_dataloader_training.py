@@ -24,7 +24,7 @@ class DepthToTensor(object):
         return tensors
 
 class KittiDataset(data.Dataset):
-    def __init__(self, root='/vulcan/scratch/koutilya/kitti', data_file='train.txt', phase='train',
+    def __init__(self, root='/vulcanscratch/koutilya/kitti', data_file='train.txt', phase='train',
                  img_transform=None, joint_transform=None, depth_transform=None, depth_resize='bilinear'):
       
         self.root = root

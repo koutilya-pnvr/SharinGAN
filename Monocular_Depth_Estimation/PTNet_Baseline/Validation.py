@@ -25,7 +25,7 @@ from Dataloaders.Kitti_dataset_util import KITTI
 
 class Solver():
     def __init__(self):
-        self.root_dir = '/vulcan/scratch/koutilya/projects/Domain_Adaptation/Common_Domain_Adaptation-Lighting/UNet_Baseline'
+        self.root_dir = '.'
         
         # Seed
         self.seed = 1729
@@ -91,7 +91,7 @@ class Solver():
         self.real_val_dataloader = DataLoader(self.real_val_dataset, shuffle=False, batch_size=self.batch_size, num_workers=4)
         
     def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, 'saved_models', 'UNet_baseline_new.pth.tar' ))
+        saved_models = glob.glob(os.path.join(self.root_dir, 'saved_models', 'PTNet_baseline_new.pth.tar' ))
         if len(saved_models)>0:
             model_state = torch.load(saved_models[0])
             self.netT.load_state_dict(model_state['netT_state_dict'])

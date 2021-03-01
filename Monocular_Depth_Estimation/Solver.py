@@ -26,7 +26,7 @@ import Dataloaders.transform as transf
 class Solver():
     def __init__(self, opt):
         self.root_dir = '.'
-
+        self.opt = opt
         # Seed
         self.seed = 1729 # The famous Hardy-Ramanujan number
         random.seed(self.seed)
@@ -68,7 +68,7 @@ class Solver():
         # Training Configuration details
         self.batch_size = 2
         self.iteration = None
-        self.total_iterations = 2000000
+        self.total_iterations = 200000
         self.START_ITER = 0
 
         self.kr = 1
@@ -104,19 +104,19 @@ class Solver():
         self.real_iter = self.loop_iter(self.real_loader)
 
     def load_pretrained_models(self):
-        model_state = torch.load(os.path.join(self.root_dir, 'Gen_Baseline/saved_models_new/AE_Resnet_Baseline.pth.tar'))
+        model_state = torch.load(os.path.join(self.root_dir, 'Gen_Baseline/saved_models/Gen_Resnet_Baseline.pth.tar'))
         
         self.netG.load_state_dict(model_state['netG_state_dict'])
         self.netG_optimizer.load_state_dict(model_state['netG_optimizer'])
         
-        model_state = torch.load(os.path.join(self.root_dir, 'UNet_Baseline/saved_models_all_iters/UNet_baseline-8999_bicubic.pth.tar'))
+        model_state = torch.load(os.path.join(self.root_dir, 'PTNet_Baseline/saved_models/PTNet_baseline-8999_bicubic.pth.tar'))
         self.netT.load_state_dict(model_state['netT_state_dict'])
         self.netT_optimizer.load_state_dict(model_state['netT_optimizer'])
             
     def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_da*.pth.tar' ))
+        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_da-9*.pth.tar' ))
         if len(saved_models)>0:
-            saved_iters = [int(s.split('-')[2].split('.')[0]) for s in saved_models]
+            saved_iters = [int(s.split('-')[-1].split('.')[0]) for s in saved_models]
             recent_id = saved_iters.index(max(saved_iters))
             saved_model = saved_models[recent_id]
             model_state = torch.load(saved_model)
@@ -343,7 +343,7 @@ class Solver():
         real_size = len(real_depth)
         gradient_smooth_loss = self.get_smooth_weight(real_depth[1:], self.real_image_scales, real_size-1)
         
-        self.netT_loss = (100*task_loss) + (0.01*gradient_smooth_loss) + adv_loss
+        self.netT_loss = (100*task_loss) + (0.01*gradient_smooth_loss)
         
         self.reset_grad()
         self.netT_loss.backward()
@@ -381,7 +381,8 @@ class Solver():
 
     def train(self):
         self.load_pretrained_models()
-        self.load_prev_model()
+        if self.opt.resume:
+            self.load_prev_model()
         for self.iteration in tqdm(range(self.START_ITER, self.total_iterations)): 
             
             self.get_syn_data()

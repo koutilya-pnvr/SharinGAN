@@ -50,7 +50,7 @@ class Solver():
         self.START_ITER = 0
         self.kr = 1
         self.kd = 1 
-        self.writer = SummaryWriter(os.path.join(self.root_dir,'../tensorboard_logs/Vkitti-kitti/UNet_Baseline_NEW_bicubic'))
+        self.writer = SummaryWriter(os.path.join(self.root_dir,'../tensorboard_logs/Vkitti-kitti/PTNet_Baseline_bicubic'))
 
         # Initialize Data
         self.syn_image, self.syn_label = None, None
@@ -74,7 +74,7 @@ class Solver():
         self.syn_iter = self.loop_iter(self.syn_loader)
         
     def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, 'saved_models_all_iters', 'UNet_baseline-*_bicubic.pth.tar' ))
+        saved_models = glob.glob(os.path.join(self.root_dir, 'saved_models', 'PTNet_baseline-*_bicubic.pth.tar' ))
         if len(saved_models)>0:
             model_state = torch.load(saved_models[0])
             self.netT.load_state_dict(model_state['netT_state_dict'])
@@ -85,15 +85,15 @@ class Solver():
         return False
 
     def save_model(self):
-        if not os.path.exists(os.path.join(self.root_dir, 'saved_models_all_iters')):
-            os.mkdir(os.path.join(self.root_dir, 'saved_models_all_iters'))
+        if not os.path.exists(os.path.join(self.root_dir, 'saved_models')):
+            os.mkdir(os.path.join(self.root_dir, 'saved_models'))
         
         torch.save({
                 'iteration': self.iteration,
                 'netT_state_dict': self.netT.state_dict(),
                 'netT_optimizer': self.netT_optimizer.state_dict(),
-                }, os.path.join(self.root_dir,'saved_models_all_iters', 'UNet_baseline_tmp_bicubic.pth.tar'))
-        os.system('mv '+os.path.join(self.root_dir,'saved_models_all_iters', 'UNet_baseline_tmp_bicubic.pth.tar')+' '+os.path.join(self.root_dir,'saved_models_all_iters', 'UNet_baseline-'+str(self.iteration)+'_bicubic.pth.tar'))
+                }, os.path.join(self.root_dir,'saved_models', 'PTNet_baseline_tmp_bicubic.pth.tar'))
+        os.system('mv '+os.path.join(self.root_dir,'saved_models', 'PTNet_baseline_tmp_bicubic.pth.tar')+' '+os.path.join(self.root_dir,'saved_models', 'PTNet_baseline-'+str(self.iteration)+'_bicubic.pth.tar'))
         
     def get_syn_data(self):
         self.syn_image, self.syn_label = next(self.syn_iter)

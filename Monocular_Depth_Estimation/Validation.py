@@ -9,7 +9,6 @@ import matplotlib
 import matplotlib.cm
 from PIL import Image
 import cv2
-import imageio
 import time
 
 import torch
@@ -125,9 +124,10 @@ class Solver():
         self.real_val_sample_images = Variable(self.real_val_sample_images.cuda())
 
     def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_da-'+str(self.iteration)+'.pth.tar' ))
+        # saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_da-'+str(self.iteration)+'.pth.tar' ))
+        saved_models = glob.glob(os.path.join('/vulcanscratch/koutilya/projects/Domain_Adaptation/Common_Domain_Adaptation-Lighting/saved_models_ablation_studies', 'Depth_Estimator_WI_geom_new_VKitti_bicubic_da-'+str(self.iteration)+'.pth.tar' ))
         if len(saved_models)>0:
-            saved_iters = [int(s.split('-')[2].split('.')[0]) for s in saved_models]
+            saved_iters = [int(s.split('-')[-1].split('.')[0]) for s in saved_models]
             recent_id = saved_iters.index(max(saved_iters))
             saved_model = saved_models[recent_id]
             model_state = torch.load(saved_model)
@@ -141,9 +141,6 @@ class Solver():
         depth_numpy = depth.cpu().data.float().numpy().transpose(0,2,3,1)
         depth_numpy = (depth_numpy + 1.0) / 2.0 # Unnormalize between 0 and 1
         return depth_numpy*80.0
-
-    def save_image(self,depth, filename):
-        imageio.imwrite(filename, depth)
 
     def colorize(self,value, vmin=None, vmax=None, cmap=None):
         """
@@ -190,8 +187,8 @@ class Solver():
         self.writer.close()
 
     def get_depth_manually(self, depth_file):
-        root_dir = '/vulcan/scratch/koutilya/kitti/Depth_from_velodyne_npy/' # path to velodyne data converted to numpy
-        # root_dir = '/vulcan/scratch/koutilya/kitti/Depth_from_velodyne/'
+        root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne_npy/' # path to velodyne data converted to numpy
+        # root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne/'
         depth_split = depth_file.split('/')
         # main_file = osp.join(root_dir, 'test', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.png')
         if self.opt.val:

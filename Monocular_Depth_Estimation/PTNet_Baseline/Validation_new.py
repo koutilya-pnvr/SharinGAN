@@ -25,7 +25,7 @@ from Dataloaders.Kitti_dataset_util import KITTI
 
 class Solver():
     def __init__(self, exp):
-        self.root_dir = '/vulcan/scratch/koutilya/projects/Domain_Adaptation/Common_Domain_Adaptation-Lighting/UNet_Baseline'
+        self.root_dir = '/vulcanscratch/koutilya/projects/Domain_Adaptation/Common_Domain_Adaptation-Lighting/PTNet_Baseline'
         
         # Seed
         self.seed = 1729
@@ -57,9 +57,9 @@ class Solver():
         self.depth_transform = tr.Compose([DepthToTensor()])
 
         self.exp = exp
-        if self.exp == 'UNet_Baseline_NEW':
+        if self.exp == 'PTNet_Baseline_NEW':
             self.model_string = ''
-        elif self.exp == 'UNet_Baseline_bicubic_NEW':
+        elif self.exp == 'PTNet_Baseline_bicubic_NEW':
             self.model_string = '_bicubic'
 
         self.writer = SummaryWriter(os.path.join(self.root_dir,'../tensorboard_logs/Vkitti-kitti/test/'+self.exp))
@@ -101,7 +101,7 @@ class Solver():
         self.real_val_dataloader = DataLoader(self.real_val_dataset, shuffle=False, batch_size=self.batch_size, num_workers=4)
         
     def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, 'saved_models_all_iters', 'UNet_baseline-'+str(self.iteration)+self.model_string+'.pth.tar' ))
+        saved_models = glob.glob(os.path.join(self.root_dir, 'saved_models', 'PTNet_baseline-'+str(self.iteration)+self.model_string+'.pth.tar' ))
         if len(saved_models)>0:
             model_state = torch.load(saved_models[0])
             self.netT.load_state_dict(model_state['netT_state_dict'])
@@ -115,7 +115,7 @@ class Solver():
         return depth_numpy*80.0
         
     def get_depth_manually(self, depth_file):
-        root_dir = '/vulcan/scratch/koutilya/kitti/Depth_from_velodyne/'
+        root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne/'
         depth_split = depth_file.split('/')
         main_file = osp.join(root_dir, 'test', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.png')
         
@@ -125,7 +125,7 @@ class Solver():
     
     def Validate(self):
         self.netT.eval()
-        saved_models_list = glob.glob(os.path.join(self.root_dir, 'saved_models_all_iters', 'UNet_baseline-*999'+self.model_string+'.pth.tar' ))
+        saved_models_list = glob.glob(os.path.join(self.root_dir, 'saved_models', 'PTNet_baseline-*999'+self.model_string+'.pth.tar' ))
         for self.iteration in range(999,1000*len(saved_models_list),1000):
             self.load_prev_model()
             self.Validation()
@@ -200,5 +200,5 @@ class Solver():
         # self.writer.close()
 
 if __name__=='__main__':
-    solver = Solver(exp='UNet_Baseline_NEW')
+    solver = Solver(exp='PTNet_Baseline_NEW')
     solver.Validate()
