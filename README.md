@@ -19,3 +19,9 @@ Place the saved model file (Depth_Estimator_WI_geom_bicubic_da-144999.pth.tar) i
 The dataset files required for the dataloaders Kitti_dataloader.py and VKitti_dataloader.py are made available at *Monocular_Depth_Estimation/dataset_files/*.
 
 Place the *Monocular_Depth_Estimation/dataset_files/Kitti/.txt* files in the original downloaded kitti/ dataset folder. Similarly place the *Monocular_Depth_Estimation/dataset_files/VKitti/.txt* files in the original downloaded Virtual_Kitti/ dataset folder.
+
+### Make3D evaluation
+```
+cd Monocular_Depth_Estimation
+python Make3D_validation.py --iter 144999
+```
