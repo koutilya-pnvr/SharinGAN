@@ -1,20 +1,9 @@
 
-import collections
-import glob
-import os
 import os.path as osp
-
-import numpy as np
 import torch
 from PIL import Image
-from PIL import ImageOps
 from torch.utils import data
 from Kitti_dataset_util import KITTI
-import random
-import cv2
-import transform
-from torchvision import transforms as tr
-import matplotlib.pyplot as plt
 
 class DepthToTensor(object):
     def __call__(self, arr_input):
@@ -71,12 +60,7 @@ class KittiDataset(data.Dataset):
         kitti = KITTI()
         assert osp.exists(osp.join(self.root, datafiles['cam_intrin'])), "Camera info does not exist"
         fb = kitti.get_fb(osp.join(self.root, datafiles['cam_intrin']))
-        assert osp.exists(osp.join(self.root, datafiles['depth'])), "Depth does not exist. \nDepth path: "+datafiles['depth']+' \nLeft Image Path: '+datafiles['l_rgb']
-        # depth = kitti.get_depth(osp.join(self.root, datafiles['cam_intrin']),
-        #                         osp.join(self.root, datafiles['depth']), [h, w])
-        depth = Image.open(osp.join(self.root, datafiles['depth']))
-        depth = np.array(depth, dtype=np.float32)
-        return l_rgb, r_rgb, fb, depth
+        return l_rgb, r_rgb, fb
             
     def __getitem__(self, index):
         # if self.phase == 'train':
@@ -84,11 +68,11 @@ class KittiDataset(data.Dataset):
         # if index > len(self)-1:
         #     index = index % len(self)
         datafiles = self.files[index]
-        l_img, r_img, fb, depth = self.read_data(datafiles)
+        l_img, r_img, fb = self.read_data(datafiles)
 
         if self.joint_transform is not None:
             if self.phase == 'train':
-                l_img, r_img, depth, fb = self.joint_transform((l_img, r_img, depth, 'train', fb))
+                l_img, r_img, _, fb = self.joint_transform((l_img, r_img, None, 'train', fb))
             else:
                 l_img, r_img, _, fb = self.joint_transform((l_img, r_img, None, 'test', fb))
             
@@ -97,7 +81,4 @@ class KittiDataset(data.Dataset):
             if r_img is not None:
                 r_img = self.img_transform(r_img)
         
-        if self.depth_transform is not None:
-            depth = self.depth_transform(depth)
-
-        return l_img, r_img, fb, depth
+        return l_img, r_img, fb

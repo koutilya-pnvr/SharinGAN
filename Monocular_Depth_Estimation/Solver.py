@@ -1,5 +1,4 @@
 import os
-import os.path as osp
 import glob
 import numpy as np
 import random
@@ -10,9 +9,7 @@ from torch import nn
 import torch.optim as Optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-import torchvision
 from torchvision import transforms as tr
-import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
 from networks import all_networks
@@ -157,10 +154,9 @@ class Solver():
         self.syn_label_scales = self.scale_pyramid(self.syn_label, 5-1)
         
     def get_real_data(self):
-        self.real_image, self.real_right_image, self.fb, self.real_label = next(self.real_iter)
-        self.real_image, self.real_label = Variable(self.real_image.cuda()), Variable(self.real_label.cuda())
+        self.real_image, self.real_right_image, self.fb = next(self.real_iter)
+        self.real_image = Variable(self.real_image.cuda())
         self.real_right_image = Variable(self.real_right_image.cuda())
-        self.real_label_scales = self.scale_pyramid(self.real_label, 5-1)
         self.real_image_scales = self.scale_pyramid(self.real_image, 5-1)
         self.real_right_image_scales = self.scale_pyramid(self.real_right_image, 5-1)
         
