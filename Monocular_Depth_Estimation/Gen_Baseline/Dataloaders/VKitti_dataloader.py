@@ -1,20 +1,12 @@
 from __future__ import print_function, division
 import os
-import glob
-import time
 
 import torch
-from skimage import io, transform
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms as tr, utils
-import cv2
-from tqdm import tqdm
-import lycon
-from skimage.morphology import binary_closing, disk
+from torch.utils.data import Dataset
+from torchvision import transforms as tr
 import torchvision.transforms.functional as F
 import random
-import matplotlib.pyplot as plt
 from PIL import Image
 
 use_cuda = torch.cuda.is_available()
@@ -87,12 +79,3 @@ class VKitti(Dataset):
         depth = self.label_transform(depth)
         
         return image, depth
-
-# test_dataset = VKitti(train=False)
-# image, depth = test_dataset[10]
-# print(image.shape, depth.shape)
-# print(torch.min(depth), torch.max(depth))
-# fig = plt.figure()
-# fig.add_subplot(1,2,1).imshow(image.numpy().transpose(1,2,0))
-# fig.add_subplot(1,2,2).imshow(depth.numpy().transpose(1,2,0)[:,:,0])
-# plt.show()

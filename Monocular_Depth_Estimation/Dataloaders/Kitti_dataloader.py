@@ -1,19 +1,10 @@
 
-import collections
-import glob
-import os
 import os.path as osp
 
-import numpy as np
-import torch
 from PIL import Image
-from PIL import ImageOps
 from torch.utils import data
 from Kitti_dataset_util import KITTI
-import random
-import cv2
 from transform import *
-from torchvision import transforms as tr
 
 class KittiDataset(data.Dataset):
     def __init__(self, root='/vulcanscratch/koutilya/kitti', data_file='train.txt', phase='train',

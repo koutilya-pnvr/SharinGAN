@@ -1,10 +1,6 @@
 import numpy as np
 from collections import Counter
 import os
-from PIL import Image
-import itertools
-#import png
-import torch.nn.functional as F
 
 def compute_errors(ground_truth, predication):
 

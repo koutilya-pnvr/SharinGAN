@@ -1,19 +1,12 @@
 from __future__ import print_function, division
 import os
-import glob
-import time
 
 import torch
-from skimage import io, transform
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms as tr, utils
-import cv2
-from tqdm import tqdm
-from skimage.morphology import binary_closing, disk
+from torch.utils.data import Dataset
+from torchvision import transforms as tr
 import torchvision.transforms.functional as F
 import random
-import matplotlib.pyplot as plt
 from PIL import Image
 
 use_cuda = torch.cuda.is_available()

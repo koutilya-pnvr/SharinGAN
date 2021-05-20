@@ -1,6 +1,4 @@
-import collections
 import math
-import numbers
 import random
 
 import numpy as np

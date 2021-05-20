@@ -7,23 +7,18 @@ from tqdm import tqdm
 import argparse
 import matplotlib
 import matplotlib.cm
-from PIL import Image
 import cv2
-import time
 
 import torch
 from torch import nn
-import torch.optim as Optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torchvision
 from torchvision import transforms as tr
-import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
 from networks import all_networks
 
-from Dataloaders.VKitti_dataloader import VKitti as syn_dataset
 from Dataloaders.Kitti_dataloader import DepthToTensor, KittiDataset as real_dataset
 import Dataloaders.transform as transf
 

@@ -9,9 +9,7 @@ from torch import nn
 import torch.optim as Optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-import torchvision
 from torchvision import transforms as tr
-import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
 from networks import all_networks

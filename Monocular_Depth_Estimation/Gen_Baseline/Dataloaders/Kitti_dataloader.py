@@ -1,19 +1,11 @@
 
-import collections
-import glob
-import os
 import os.path as osp
 
-import numpy as np
-import torch
 from PIL import Image
-from PIL import ImageOps
 from torch.utils import data
 from Kitti_dataset_util import KITTI
 import random
-import cv2
 from transform import *
-from torchvision import transforms as tr
 
 class KittiDataset(data.Dataset):
     def __init__(self, root='/vulcan/scratch/koutilya/kitti', data_file='train.txt', phase='train',
@@ -122,29 +114,3 @@ class KittiDataset(data.Dataset):
             data['fb'] = fb
 
         return l_img
-
-# joint_transform_list = [RandomImgAugment(no_flip=False, no_rotation=True, no_augment=False, size=(192,640))]
-# img_transform_list = [tr.ToTensor(), tr.Normalize([.5, .5, .5], [.5, .5, .5])]
-
-# joint_transform = tr.Compose(joint_transform_list)
-
-# img_transform = tr.Compose(img_transform_list)
-
-# depth_transform = tr.Compose([DepthToTensor()])
-
-# train_dataset = KittiDataset(img_transform=img_transform, joint_transform=joint_transform, depth_transform=depth_transform, complete_data=True)
-# print(len(train_dataset))
-# data = train_dataset[10]
-# print(data.shape)
-# train_dataset = KittiDataset(img_transform=img_transform, joint_transform=joint_transform, depth_transform=depth_transform, complete_data=False)
-# print(len(train_dataset))
-# data = train_dataset[10]
-# print(data.shape)
-
-# test_dataset = KittiDataset(data_file='test.txt',phase='test',img_transform=img_transform, joint_transform=joint_transform, depth_transform=depth_transform)
-# print(len(test_dataset))
-# data = test_dataset[10]
-# print(data['depth'].shape)
-# import matplotlib.pyplot as plt
-# plt.imshow((1+data.numpy().transpose(1,2,0))/2)
-# plt.show()
