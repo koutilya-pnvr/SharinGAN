@@ -112,12 +112,12 @@ def _unfreeze(*args):
 
 # define the generator(transform, task) network
 def define_G(input_nc, output_nc, ngf=64, layers=4, norm='batch', activation='PReLU', model_type='UNet',
-                    init_type='xavier', drop_rate=0, add_noise=False, gpu_ids=[], weight=0.1):
+                    init_type='xavier', drop_rate=0, add_noise=False, gpu_ids=[], weight=0.1, uncertainty=False):
 
     if model_type == 'ResNet':
         net = _ResGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids)
     elif model_type == 'UNet':
-        net = _UNetGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids, weight)
+        net = _UNetGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids, weight, uncertainty)
         # net = _PreUNet16(input_nc, output_nc, ngf, layers, True, norm, activation, drop_rate, gpu_ids)
     else:
         raise NotImplementedError('model type [%s] is not implemented', model_type)
@@ -268,13 +268,13 @@ class _DecoderUpBlock(nn.Module):
 
 
 class _OutputBlock(nn.Module):
-    def __init__(self, input_nc, output_nc, kernel_size=3, use_bias=False):
+    def __init__(self, input_nc, output_nc, kernel_size=3, use_bias=False, non_linearity=nn.Tanh()):
         super(_OutputBlock, self).__init__()
 
         model = [
             nn.ReflectionPad2d(int(kernel_size/2)),
             nn.Conv2d(input_nc, output_nc, kernel_size=kernel_size, padding=0, bias=use_bias),
-            nn.Tanh()
+            non_linearity
         ]
 
         self.model = nn.Sequential(*model)
@@ -444,12 +444,13 @@ class _PreUNet16(nn.Module):
 
 class _UNetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64, layers=4, norm='batch', activation='PReLU', drop_rate=0, add_noise=False, gpu_ids=[],
-                 weight=0.1):
+                 weight=0.1, uncertainty=False):
         super(_UNetGenerator, self).__init__()
 
         self.gpu_ids = gpu_ids
         self.layers = layers
         self.weight = weight
+        self.uncertainty = uncertainty
         norm_layer = get_norm_layer(norm_type=norm)
         nonlinearity = get_nonlinearity_layer(activation_type=activation)
 
@@ -499,6 +500,12 @@ class _UNetGenerator(nn.Module):
         self.output3 = _OutputBlock(ngf*(2+2)+output_nc, output_nc, 3, use_bias)
         self.output2 = _OutputBlock(ngf*(1+1)+output_nc, output_nc, 3, use_bias)
         self.output1 = _OutputBlock(int(ngf/2)+output_nc, output_nc, 7, use_bias)
+        
+        if self.uncertainty:
+            self.uncert4 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
+            self.uncert3 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
+            self.uncert2 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
+            self.uncert1 = _OutputBlock(output_nc, output_nc, 7, use_bias, non_linearity=nn.Sigmoid())
 
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
@@ -515,24 +522,50 @@ class _UNetGenerator(nn.Module):
             middle.append(center_in)
         center_out = self.center.forward(center_in)
         result = [center_in]
+        deconv_result = [center_in]
 
         for i in range(self.layers-4):
             model = getattr(self, 'up'+str(i))
             center_out = model.forward(torch.cat([center_out, middle[self.layers-5-i]], 1))
 
-        deconv4 = self.deconv4.forward(torch.cat([center_out, conv3 * self.weight], 1))
-        output4 = self.output4.forward(torch.cat([center_out, conv3 * self.weight], 1))
+        concat4 = torch.cat([center_out, conv3 * self.weight], 1)
+        deconv4 = self.deconv4.forward(concat4)
+        output4 = self.output4.forward(concat4)
         result.append(output4)
-        deconv3 = self.deconv3.forward(torch.cat([deconv4, conv2 * self.weight * 0.5, self.upsample(output4)], 1))
-        output3 = self.output3.forward(torch.cat([deconv4, conv2 * self.weight * 0.5, self.upsample(output4)], 1))
-        result.append(output3)
-        deconv2 = self.deconv2.forward(torch.cat([deconv3, conv1 * self.weight * 0.1, self.upsample(output3)], 1))
-        output2 = self.output2.forward(torch.cat([deconv3, conv1 * self.weight * 0.1, self.upsample(output3)], 1))
-        result.append(output2)
-        output1 = self.output1.forward(torch.cat([deconv2, self.upsample(output2)], 1))
-        result.append(output1)
+        deconv_result.append(deconv4)
 
-        return result
+        concat3 = torch.cat([deconv4, conv2 * self.weight * 0.5, self.upsample(output4)], 1)
+        deconv3 = self.deconv3.forward(concat3)
+        output3 = self.output3.forward(concat3)
+        result.append(output3)
+        deconv_result.append(deconv3)
+
+        concat2 = torch.cat([deconv3, conv1 * self.weight * 0.1, self.upsample(output3)], 1)
+        deconv2 = self.deconv2.forward(concat2)
+        output2 = self.output2.forward(concat2)
+        result.append(output2)
+        deconv_result.append(deconv2)
+
+        concat1 = torch.cat([deconv2, self.upsample(output2)], 1)
+        output1 = self.output1.forward(concat1)
+        result.append(output1)
+        deconv_result.append(0)
+
+        uncert_result = [center_in]
+        if self.uncertainty:
+            uncert4 = self.uncert4.forward(output4)
+            uncert_result.append(uncert4)
+                    
+            uncert3 = self.uncert3.forward(output3)
+            uncert_result.append(uncert3)
+                    
+            uncert2 = self.uncert2.forward(output2)
+            uncert_result.append(uncert2)
+                    
+            uncert1 = self.uncert1.forward(output1)
+            uncert_result.append(uncert1)
+                    
+        return deconv_result, uncert_result, result
 
 
 class _MultiscaleDiscriminator(nn.Module):

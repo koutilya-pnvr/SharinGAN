@@ -27,7 +27,7 @@ class ReconLoss(nn.Module):
         super(ReconLoss, self).__init__()
         self.alpha = alpha
 
-    def forward(self, img0, img1, pred, fb, max_d=80.0):
+    def forward(self, img0, img1, pred, fb, max_d=80.0, reduction='mean'):
 
         x0 = (img0 + 1.0) / 2.0
         x1 = (img1 + 1.0) / 2.0
@@ -48,8 +48,15 @@ class ReconLoss(nn.Module):
 
         ssim_ = ssim(x0, x0_w)
         l1 = torch.abs(x0-x0_w)
-        loss1 = torch.mean(self.alpha * ssim_)
-        loss2 = torch.mean((1-self.alpha) * l1)
+        if reduction=='none':
+            weighted_ssim = self.alpha * ssim_
+            weighted_l1 = (1-self.alpha) * l1
+            loss1, loss2 = weighted_ssim, weighted_l1
+            # loss1 = weighted_ssim.view(weighted_ssim.size(0), -1).mean(1)
+            # loss2 = weighted_l1.view(weighted_l1.size(0), -1).mean(1)
+        else:
+            loss1 = torch.mean(self.alpha * ssim_)
+            loss2 = torch.mean((1-self.alpha) * l1)
         loss = loss1 + loss2
 
         recon_img = x0_w * 2.0-1.0
