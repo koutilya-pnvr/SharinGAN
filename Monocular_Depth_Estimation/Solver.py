@@ -3,12 +3,16 @@ import glob
 import numpy as np
 import random
 from tqdm import tqdm
+import matplotlib
+import matplotlib.cm
+import cv2
 
 import torch
 from torch import nn
 import torch.optim as Optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+import torchvision
 from torchvision import transforms as tr
 from tensorboardX import SummaryWriter
 
@@ -18,6 +22,7 @@ from Geometric_consistency_loss import *
 
 from Dataloaders.VKitti_dataloader import VKitti as syn_dataset
 from Dataloaders.Kitti_dataloader_training import DepthToTensor, KittiDataset as real_dataset
+from Dataloaders.Kitti_dataloader import KittiDataset as real_val_dataset
 import Dataloaders.transform as transf
 
 class Solver():
@@ -67,6 +72,10 @@ class Solver():
         self.iteration = None
         self.total_iterations = 200000
         self.START_ITER = 0
+        self.flag = True
+        self.garg_crop = True
+        self.eigen_crop = False
+        self.best_a1 = 0.0
 
         self.kr = 1
         self.kd = 1 
@@ -86,6 +95,7 @@ class Solver():
         # Initialize Data
         self.get_training_data()
         self.get_training_dataloaders()
+        self.get_validation_data()
 
     def loop_iter(self, loader):
         while True:
@@ -110,8 +120,8 @@ class Solver():
         self.netT.load_state_dict(model_state['netT_state_dict'])
         self.netT_optimizer.load_state_dict(model_state['netT_optimizer'])
             
-    def load_prev_model(self):
-        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_da-9*.pth.tar' ))
+    def load_prev_model(self, model_status='latest'):
+        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_da-'+model_status+'.pth.tar' ))
         if len(saved_models)>0:
             saved_iters = [int(s.split('-')[-1].split('.')[0]) for s in saved_models]
             recent_id = saved_iters.index(max(saved_iters))
@@ -131,7 +141,7 @@ class Solver():
             return True
         return False
 
-    def save_model(self):
+    def save_model(self, model_status='latest'):
         if not os.path.exists(os.path.join(self.root_dir, self.saved_models_dir)):
             os.mkdir(os.path.join(self.root_dir, self.saved_models_dir))
         
@@ -146,7 +156,7 @@ class Solver():
         dict3 = {'netD'+str(i)+'_optimizer_state_dict':self.netD_optimizer[i].state_dict() for i,disc in enumerate(self.netD)}
         final_dict = dict(dict1.items()+dict2.items()+dict3.items())
         torch.save(final_dict, os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator-da_tmp.pth.tar'))
-        os.system('mv '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator-da_tmp.pth.tar')+' '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_da-'+str(self.iteration)+'.pth.tar'))
+        os.system('mv '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator-da_tmp.pth.tar')+' '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_da-'+model_status+'.pth.tar'))
         
     def get_syn_data(self):
         self.syn_image, self.syn_label = next(self.syn_iter)
@@ -237,7 +247,7 @@ class Solver():
             for disc_op in self.netD_optimizer:
                 disc_op.zero_grad()
         else:
-            for idx, disc_op in enumerate(netD):
+            for idx, disc_op in enumerate(self.netD):
                 if idx==i:
                     continue
                 else:
@@ -411,7 +421,183 @@ class Solver():
 
             if self.iteration % 1000 == 999:
                 # Validation and saving models
-                self.save_model()
+                self.save_model(model_status='latest')
+                self.Validate()
                 
         self.writer.close()
+
+    def get_validation_data(self):
+        self.real_val_dataset = real_val_dataset(data_file='val.txt',phase='val',img_transform=self.img_transform, joint_transform=self.joint_transform, depth_transform=self.depth_transform)
+        self.real_val_dataloader = DataLoader(self.real_val_dataset, shuffle=False, batch_size=self.batch_size, num_workers=4)
+        self.real_val_sample_dataloader = DataLoader(self.real_val_dataset, shuffle=True, batch_size=self.batch_size, num_workers=4)
+        self.real_image, self.real_right_image, self.fb = next(self.real_iter)
+        self.real_val_sample_images, self.real_val_sample_filenames = next(iter(self.real_val_sample_dataloader))
+        self.real_val_sample_images = self.real_val_sample_images['left_img']
+        self.real_val_sample_images = Variable(self.real_val_sample_images.cuda())
+
+    def compute_errors(self, ground_truth, predication):
+
+        # accuracy
+        threshold = np.maximum((ground_truth / predication),(predication / ground_truth))
+        a1 = (threshold < 1.25 ).mean()
+        a2 = (threshold < 1.25 ** 2 ).mean()
+        a3 = (threshold < 1.25 ** 3 ).mean()
+
+        #MSE
+        rmse = (ground_truth - predication) ** 2
+        rmse = np.sqrt(rmse.mean())
+
+        #MSE(log)
+        rmse_log = (np.log(ground_truth) - np.log(predication)) ** 2
+        rmse_log = np.sqrt(rmse_log.mean())
+
+        # Abs Relative difference
+        abs_rel = np.mean(np.abs(ground_truth - predication) / ground_truth)
+
+        # Squared Relative difference
+        sq_rel = np.mean(((ground_truth - predication) ** 2) / ground_truth)
+
+        return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
+
+    def tensor2im(self,depth):
+        depth_numpy = depth.cpu().data.float().numpy().transpose(0,2,3,1)
+        depth_numpy = (depth_numpy + 1.0) / 2.0 # Unnormalize between 0 and 1
+        return depth_numpy*80.0
+
+    def colorize(self,value, vmin=None, vmax=None, cmap=None):
+        """
+        A utility function for Torch/Numpy that maps a grayscale image to a matplotlib
+        colormap for use with TensorBoard image summaries.
+        By default it will normalize the input value to the range 0..1 before mapping
+        to a grayscale colormap.
+        Arguments:
+        - value: 2D Tensor of shape [height, width] or 3D Tensor of shape
+            [height, width, 1].
+        - vmin: the minimum value of the range used for normalization.
+            (Default: value minimum)
+        - vmax: the maximum value of the range used for normalization.
+            (Default: value maximum)
+        - cmap: a valid cmap named for use with matplotlib's `get_cmap`.
+            (Default: Matplotlib default colormap)
+        
+        Returns a 4D uint8 tensor of shape [height, width, 4].
+        """
+
+        # # normalize
+        # vmin = value.min() if vmin is None else vmin
+        # vmax = value.max() if vmax is None else vmax
+        # if vmin!=vmax:
+        #     value = (value - vmin) / (vmax - vmin) # vmin..vmax
+        # else:
+        #     # Avoid 0-division
+        #     value = value*0.
+        # # squeeze last dim if it exists
+        # value = value.squeeze()
+
+        cmapper = matplotlib.cm.get_cmap(cmap)
+        value = cmapper(value.cpu().numpy(),bytes=True) # (nxmx4)
+        return value
+    
+    def get_depth_manually(self, depth_file):
+        root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne_npy/' # path to velodyne data converted to numpy
+        depth_split = depth_file.split('/')
+        main_file = os.path.join(root_dir, 'val', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.npy')
+        depth = np.load(main_file)
+        # root_dir = '/vulcanscratch/koutilya/kitti/Depth_from_velodyne/'
+        # main_file = osp.join(root_dir, 'test', depth_split[0], depth_split[1], depth_split[-1].split('.')[0]+'.png')
+        # depth = Image.open(main_file)
+        # depth = np.array(depth, dtype=np.float32) / 255.0
+        return depth
+
+    def Validate(self):
+        self.netG.eval()
+        self.netT.eval()
+
+        num_samples = len(self.real_val_dataset)
+        abs_rel = np.zeros(num_samples, np.float32)
+        sq_rel = np.zeros(num_samples,np.float32)
+        rmse = np.zeros(num_samples,np.float32)
+        rmse_log = np.zeros(num_samples,np.float32)
+        a1 = np.zeros(num_samples,np.float32)
+        a2 = np.zeros(num_samples,np.float32)
+        a3 = np.zeros(num_samples,np.float32)
+
+        with torch.no_grad():
+            for i,(data, depth_filenames) in tqdm(enumerate(self.real_val_dataloader)): 
+                self.real_val_image = data['left_img']#, data['depth'] # self.real_depth is a numpy array 
+                self.real_val_image = Variable(self.real_val_image.cuda())
+                _, real_recon_image = self.netG(self.real_val_image)
                 
+                depth = self.netT(real_recon_image)
+                depth = depth[-1]
+                depth_numpy = self.tensor2im(depth) # 0-80m
+                
+                if i==0:
+                    if self.flag:
+                        self.writer.add_image('Real Images',torchvision.utils.make_grid((1.0+self.real_val_sample_images)/2.0,nrow=4), self.iteration)
+                        self.flag=False
+
+                    _, self.real_val_sample_translated_images = self.netG(self.real_val_sample_images)
+                    
+                    sample_depth = self.netT(self.real_val_sample_translated_images)
+                    sample_depth = sample_depth[-1]
+                    sample_depth = sample_depth.data
+                    sample_depth = (1.0+sample_depth)/2.0
+                    sample_depth_colorized = self.colorize(sample_depth,cmap=matplotlib.cm.get_cmap('plasma'))
+                    sample_depth_colorized = torch.from_numpy(sample_depth_colorized.squeeze()).permute(0,3,1,2)[:,:3,:,:]
+                    self.writer.add_image('Real Translated Images',torchvision.utils.make_grid((1.0+self.real_val_sample_translated_images)/2.0,nrow=4), self.iteration)
+                    self.writer.add_image('Predicted Depth',torchvision.utils.make_grid(sample_depth_colorized,nrow=4), self.iteration)
+                    
+                for t_id in range(depth_numpy.shape[0]):
+                    t_id_global = (i*self.batch_size)+t_id
+                    # _,_,_,ground_depth = self.real_val_dataset.read_data(self.real_val_dataset.files[(i*self.batch_size)+t_id])
+                    h, w = self.real_val_image.shape[2], self.real_val_image.shape[3]
+                    datafiles1 = self.real_val_dataset.files[t_id_global]
+                    ground_depth = self.get_depth_manually(datafiles1['depth']) 
+                    height, width = ground_depth.shape
+
+                    predicted_depth = cv2.resize(depth_numpy[t_id],(width, height),interpolation=cv2.INTER_LINEAR)
+                    predicted_depth[predicted_depth < 1.0] = 1.0
+                    predicted_depth[predicted_depth > 50.0] = 50.0
+
+                    mask = np.logical_and(ground_depth > 1.0, ground_depth < 50.0)
+                    
+                    # crop used by Garg ECCV16
+                    if self.garg_crop:
+                        self.crop = np.array([0.40810811 * height,  0.99189189 * height,
+                                            0.03594771 * width,   0.96405229 * width]).astype(np.int32)
+
+                    # crop we found by trail and error to reproduce Eigen NIPS14 results
+                    elif self.eigen_crop:
+                        self.crop = np.array([0.3324324 * height,  0.91351351 * height,
+                                            0.0359477 * width,   0.96405229 * width]).astype(np.int32)
+
+                    crop_mask = np.zeros(mask.shape)
+                    crop_mask[self.crop[0]:self.crop[1],self.crop[2]:self.crop[3]] = 1
+                    mask = np.logical_and(mask, crop_mask)
+
+                    
+                    abs_rel[t_id_global], sq_rel[t_id_global], rmse[t_id_global], rmse_log[t_id_global], a1[t_id_global], a2[t_id_global], a3[t_id_global] = self.compute_errors(ground_depth[mask],predicted_depth[mask])
+
+            print ('{:>10},{:>10},{:>10},{:>10},{:>10},{:>10},{:>10}'.format('abs_rel','sq_rel','rmse','rmse_log','a1','a2','a3'))
+            print ('{:10.4f},{:10.4f},{:10.4f},{:10.4f},{:10.4f},{:10.4f},{:10.4f}'
+                .format(abs_rel.mean(),sq_rel.mean(),rmse.mean(),rmse_log.mean(),a1.mean(),a2.mean(),a3.mean()))
+
+            ##################################################
+            ### Tensorboard Logging
+            ##################################################            
+            self.writer.add_scalar('Kitti_Validatoin_metrics/Abs_Rel', abs_rel.mean(), self.iteration)
+            self.writer.add_scalar('Kitti_Validatoin_metrics/Sq_Rel', sq_rel.mean(), self.iteration)
+            self.writer.add_scalar('Kitti_Validatoin_metrics/RMSE', rmse.mean(), self.iteration)
+            self.writer.add_scalar('Kitti_Validatoin_metrics/RMSE_log', rmse_log.mean(), self.iteration)
+            self.writer.add_scalar('Kitti_Validatoin_metrics/del<1.25', a1.mean(), self.iteration)
+            self.writer.add_scalar('Kitti_Validatoin_metrics/del<1.25^2', a2.mean(), self.iteration)
+            self.writer.add_scalar('Kitti_Validatoin_metrics/del<1.25^3', a3.mean(), self.iteration)
+
+        if self.best_a1 < a1.mean():
+            # Found a new best model
+            self.save_model(model_status='best')
+            self.best_a1 = a1.mean()
+
+        self.netG.train()
+        self.netT.train()
