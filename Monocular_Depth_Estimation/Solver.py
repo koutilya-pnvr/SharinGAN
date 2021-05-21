@@ -96,7 +96,7 @@ class Solver():
         self.img_transform = tr.Compose(img_transform_list)
         self.depth_transform = tr.Compose([DepthToTensor()])
         
-        self.writer = SummaryWriter(os.path.join(self.root_dir,'tensorboard_logs/Vkitti-kitti/train_uncertainty'))
+        self.writer = SummaryWriter(os.path.join(self.root_dir,'tensorboard_logs/Vkitti-kitti/train_uncertainty_loss_only_syn_real'))
         self.saved_models_dir = 'saved_models'
 
         # Initialize Data
@@ -141,7 +141,7 @@ class Solver():
         self.netT_optimizer.load_state_dict(model_state['netT_optimizer'])
             
     def load_prev_model(self, model_status='latest'):
-        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_uncertainty_da-'+model_status+'.pth.tar' ))
+        saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_uncertainty_loss_only_syn_real_da-'+model_status+'.pth.tar' ))
         if len(saved_models)>0:
             saved_iters = [int(s.split('-')[-1].split('.')[0]) for s in saved_models]
             recent_id = saved_iters.index(max(saved_iters))
@@ -179,8 +179,8 @@ class Solver():
         dict2 = {'netD'+str(i)+'_state_dict':disc.state_dict() for i,disc in enumerate(self.netD)}
         dict3 = {'netD'+str(i)+'_optimizer_state_dict':self.netD_optimizer[i].state_dict() for i,disc in enumerate(self.netD)}
         final_dict = dict(dict1.items()+dict2.items()+dict3.items())
-        torch.save(final_dict, os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_uncertainty-da_tmp.pth.tar'))
-        os.system('mv '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_uncertainty-da_tmp.pth.tar')+' '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_uncertainty_da-'+model_status+'.pth.tar'))
+        torch.save(final_dict, os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_uncertainty_loss_only_syn_real-da_tmp.pth.tar'))
+        os.system('mv '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_uncertainty_loss_only_syn_real-da_tmp.pth.tar')+' '+os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_uncertainty_loss_only_syn_real_da-'+model_status+'.pth.tar'))
         
     def get_syn_data(self):
         self.syn_image, self.syn_label = next(self.syn_iter)
@@ -335,11 +335,11 @@ class Solver():
         syn_probability_loss = torch.zeros(2).cuda()
         real_probability_loss = torch.zeros(2).cuda()
         for (lab_fake_i, lab_real_i, uncertainty_output) in zip(syn_depth[1:], self.syn_label_scales, syn_uncertainty[1:]):
-            task_loss += self.netT_loss_fn(lab_fake_i, lab_real_i)
-            # syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
-            # syn_probability_loss_temp /= uncertainty_output
-            # syn_probability_loss_temp += torch.log(uncertainty_output)
-            # syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
+            # task_loss += self.netT_loss_fn(lab_fake_i, lab_real_i)
+            syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
+            syn_probability_loss_temp /= uncertainty_output
+            syn_probability_loss_temp += torch.log(uncertainty_output)
+            syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
         
         geo_id = 0
         for (l_img, r_img, gen_depth, uncertainty_output) in zip(self.real_image_scales, self.real_right_image_scales, real_depth[1:], real_uncertainty[1:]):
@@ -347,7 +347,7 @@ class Solver():
             real_probability_loss_temp = loss/uncertainty_output
             real_probability_loss_temp += torch.log(uncertainty_output)
             real_probability_loss += (real_probability_loss_temp.view(real_probability_loss_temp.size(0),-1).mean(1))
-            task_loss += loss.mean()
+            # task_loss += loss.mean()
             geo_id += 1
         
         uncertainty_loss = syn_probability_loss + real_probability_loss
@@ -382,11 +382,11 @@ class Solver():
         self.syn_probability_loss = torch.zeros(2).cuda()
         self.real_probability_loss = torch.zeros(2).cuda()
         for (lab_fake_i, lab_real_i, syn_uncertainty_output) in zip(syn_depth[1:], self.syn_label_scales, syn_uncertainty[1:]):
-            task_loss += self.netT_loss_fn(lab_fake_i, lab_real_i)
-            # syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
-            # syn_probability_loss_temp /= syn_uncertainty_output
-            # syn_probability_loss_temp += torch.log(syn_uncertainty_output)
-            # self.syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
+            # task_loss += self.netT_loss_fn(lab_fake_i, lab_real_i)
+            syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
+            syn_probability_loss_temp /= syn_uncertainty_output
+            syn_probability_loss_temp += torch.log(syn_uncertainty_output)
+            self.syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
         
         geo_id = 0
         for (l_img, r_img, gen_depth, real_uncertainty_output) in zip(self.real_image_scales, self.real_right_image_scales, real_depth[1:], real_uncertainty[1:]):
@@ -394,7 +394,7 @@ class Solver():
             real_probability_loss_temp = loss/real_uncertainty_output
             real_probability_loss_temp += torch.log(real_uncertainty_output)
             self.real_probability_loss += (real_probability_loss_temp.view(real_probability_loss_temp.size(0),-1).mean(1))
-            task_loss += loss.mean()
+            # task_loss += loss.mean()
             geo_id += 1
         self.syn_probability_loss = self.syn_probability_loss.mean()
         self.real_probability_loss = self.real_probability_loss.mean()
