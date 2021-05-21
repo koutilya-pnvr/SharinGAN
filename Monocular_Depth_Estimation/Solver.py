@@ -320,10 +320,10 @@ class Solver():
         real_probability_loss = torch.zeros(2).cuda()
         for (lab_fake_i, lab_real_i, uncertainty_output) in zip(syn_depth[1:], self.syn_label_scales, syn_uncertainty[1:]):
             task_loss += self.netT_loss_fn(lab_fake_i, lab_real_i)
-            syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
-            syn_probability_loss_temp /= uncertainty_output
-            syn_probability_loss_temp += torch.log(uncertainty_output)
-            syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
+            # syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
+            # syn_probability_loss_temp /= uncertainty_output
+            # syn_probability_loss_temp += torch.log(uncertainty_output)
+            # syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
         
         geo_id = 0
         for (l_img, r_img, gen_depth, uncertainty_output) in zip(self.real_image_scales, self.real_right_image_scales, real_depth[1:], real_uncertainty[1:]):
@@ -362,18 +362,18 @@ class Solver():
         task_loss = 0.0
         self.syn_probability_loss = torch.zeros(2).cuda()
         self.real_probability_loss = torch.zeros(2).cuda()
-        for (lab_fake_i, lab_real_i, uncertainty_output) in zip(syn_depth[1:], self.syn_label_scales, syn_uncertainty[1:]):
+        for (lab_fake_i, lab_real_i, syn_uncertainty_output) in zip(syn_depth[1:], self.syn_label_scales, syn_uncertainty[1:]):
             task_loss += self.netT_loss_fn(lab_fake_i, lab_real_i)
-            syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
-            syn_probability_loss_temp /= uncertainty_output
-            syn_probability_loss_temp += torch.log(uncertainty_output)
-            self.syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
+            # syn_probability_loss_temp = self.netT_loss_fn_individual(lab_fake_i, lab_real_i)
+            # syn_probability_loss_temp /= syn_uncertainty_output
+            # syn_probability_loss_temp += torch.log(syn_uncertainty_output)
+            # self.syn_probability_loss += (syn_probability_loss_temp.view(syn_probability_loss_temp.size(0),-1).mean(1))
         
         geo_id = 0
-        for (l_img, r_img, gen_depth, uncertainty_output) in zip(self.real_image_scales, self.real_right_image_scales, real_depth[1:], real_uncertainty[1:]):
+        for (l_img, r_img, gen_depth, real_uncertainty_output) in zip(self.real_image_scales, self.real_right_image_scales, real_depth[1:], real_uncertainty[1:]):
             loss, _ = self.geometric_loss_fn(l_img, r_img, gen_depth, self.fb / 2**(3-geo_id), reduction='none')
-            real_probability_loss_temp = loss/uncertainty_output
-            real_probability_loss_temp += torch.log(uncertainty_output)
+            real_probability_loss_temp = loss/real_uncertainty_output
+            real_probability_loss_temp += torch.log(real_uncertainty_output)
             self.real_probability_loss += (real_probability_loss_temp.view(real_probability_loss_temp.size(0),-1).mean(1))
             task_loss += loss.mean()
             geo_id += 1
@@ -455,6 +455,9 @@ class Solver():
             self.writer.add_scalar('1) Total Generator loss', self.netG_loss, self.iteration)
             self.writer.add_scalar('2) Total Discriminator loss', self.netD_loss, self.iteration)
             self.writer.add_scalar('3) Total Depth Regressor loss', self.netT_loss, self.iteration)
+            self.writer.add_scalar('Total Depth Uncertainty loss', self.uncertainty_loss, self.iteration)
+            self.writer.add_scalar('Synthetic Uncertainty loss', self.syn_probability_loss, self.iteration)
+            self.writer.add_scalar('Real Uncertainty loss', self.real_probability_loss, self.iteration)
 
             if self.iteration % 1000 == 999:
                 # Validation and saving models
