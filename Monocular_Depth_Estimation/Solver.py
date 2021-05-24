@@ -44,9 +44,13 @@ class Solver():
         
         self.netT = all_networks.define_G(3, 1, 64, 4, 'batch',
                                             'PReLU', 'UNet', 'kaiming', 0,
-                                            False, [0], 0.1, uncertainty=True)
+                                            False, [0], 0.1)
+        self.netU = all_networks.define_G(3, 1, 64, 4, 'batch',
+                                            'PReLU', 'UncertaintyNet', 'kaiming', 0,
+                                            False, [0], 0.1)
         self.netG.cuda()
         self.netT.cuda()
+        self.netU.cuda()
         for disc in self.netD:
             disc.cuda()
 
@@ -68,6 +72,7 @@ class Solver():
         for disc in self.netD:
             self.netD_optimizer.append(Optim.Adam(disc.parameters(), lr=1e-5))
         self.netT_optimizer = Optim.Adam(self.netT.parameters(), lr=1e-5)
+        self.netU_optimizer = Optim.Adam(self.netU.parameters(), lr=1e-5)
 
         # Training Configuration details
         self.batch_size = 2
@@ -130,9 +135,10 @@ class Solver():
         self.netG_optimizer.load_state_dict(model_state['netG_optimizer'])
         
         model_state = torch.load(os.path.join(self.root_dir, 'PTNet_Baseline/saved_models/PTNet_baseline-8999_bicubic.pth.tar'))
-        self.load_my_state_dict(self.netT, model_state['netT_state_dict'])
+        # self.load_my_state_dict(self.netT, model_state['netT_state_dict'])
         # self.load_my_state_dict(self.netT_optimizer, model_state['netT_optimizer'])
-        # self.netT_optimizer.load_state_dict(model_state['netT_optimizer'])
+        self.netT.load_state_dict(model_state['netT_state_dict'])
+        self.netT_optimizer.load_state_dict(model_state['netT_optimizer'])
             
     def load_prev_model(self, model_status='latest'):
         saved_models = glob.glob(os.path.join(self.root_dir, self.saved_models_dir, 'Depth_Estimator_WI_geom_bicubic_uncertainty_da-'+model_status+'.pth.tar' ))
@@ -143,9 +149,11 @@ class Solver():
             model_state = torch.load(saved_model)
             self.netG.load_state_dict(model_state['netG_state_dict'])
             self.netT.load_state_dict(model_state['netT_state_dict'])
+            self.netU.load_state_dict(model_state['netU_state_dict'])
 
             self.netG_optimizer.load_state_dict(model_state['netG_optimizer'])
             self.netT_optimizer.load_state_dict(model_state['netT_optimizer'])
+            self.netU_optimizer.load_state_dict(model_state['netU_optimizer'])
             
             for i,disc in enumerate(self.netD):
                 disc.load_state_dict(model_state['netD'+str(i)+'_state_dict'])
@@ -163,8 +171,10 @@ class Solver():
                 'iteration': self.iteration,
                 'netG_state_dict': self.netG.state_dict(),
                 'netT_state_dict': self.netT.state_dict(),
+                'netU_state_dict': self.netU.state_dict(),
                 'netG_optimizer': self.netG_optimizer.state_dict(),
                 'netT_optimizer': self.netT_optimizer.state_dict(),
+                'netU_optimizer': self.netU_optimizer.state_dict(),
                 }
         dict2 = {'netD'+str(i)+'_state_dict':disc.state_dict() for i,disc in enumerate(self.netD)}
         dict3 = {'netD'+str(i)+'_optimizer_state_dict':self.netD_optimizer[i].state_dict() for i,disc in enumerate(self.netD)}
@@ -272,12 +282,15 @@ class Solver():
             self.netG_optimizer.zero_grad()
             self.reset_netD_grad()
             self.netT_optimizer.zero_grad()
+            self.netU_optimizer.zero_grad()
         elif(exclude=='netG'):
             self.reset_netD_grad()
             self.netT_optimizer.zero_grad()
+            self.netU_optimizer.zero_grad()
         elif(exclude=='netD'):
             self.netG_optimizer.zero_grad()
             self.netT_optimizer.zero_grad()
+            self.netU_optimizer.zero_grad()
         elif(exclude=='netT'):
             self.netG_optimizer.zero_grad()
             self.reset_netD_grad()
@@ -298,14 +311,17 @@ class Solver():
     def update_netG(self):
         
         self.set_requires_grad(self.netT, False)
+        self.set_requires_grad(self.netU, False)
         for disc in self.netD:
             self.set_requires_grad(disc, False)
 
         self.real_features, self.real_recon_image = self.netG(self.real_image)
         self.syn_features, self.syn_recon_image = self.netG(self.syn_image)
         
-        _, real_uncertainty, real_depth = self.netT(self.real_recon_image)
-        _, syn_uncertainty, syn_depth = self.netT(self.syn_recon_image)
+        _, real_depth = self.netT(self.real_recon_image)
+        _, syn_depth = self.netT(self.syn_recon_image)
+        real_uncertainty = self.netU(real_depth)
+        syn_uncertainty = self.netU(syn_depth)
         self.real_predicted_depth, self.syn_predicted_depth = real_depth[-1], syn_depth[-1]
 
         self.forward_netD()
@@ -345,6 +361,7 @@ class Solver():
         self.netG_optimizer.step()
 
         self.set_requires_grad(self.netT, True)
+        self.set_requires_grad(self.netU, True)
         for disc in self.netD:
             self.set_requires_grad(disc, True)
 
@@ -356,8 +373,10 @@ class Solver():
 
         _, syn_refined_image = self.netG(self.syn_image)
         _, real_refined_image = self.netG(self.real_image)
-        _, syn_uncertainty, syn_depth = self.netT(syn_refined_image)
-        _, real_uncertainty, real_depth = self.netT(real_refined_image)
+        _, syn_depth = self.netT(syn_refined_image)
+        _, real_depth = self.netT(real_refined_image)
+        syn_uncertainty = self.netU(syn_depth)
+        real_uncertainty = self.netU(real_depth)
 
         task_loss = 0.0
         self.syn_probability_loss = torch.zeros(2).cuda()
@@ -381,8 +400,6 @@ class Solver():
         self.real_probability_loss = self.real_probability_loss.mean()
         self.uncertainty_loss = self.syn_probability_loss + self.real_probability_loss
 
-        _, real_refined_image = self.netG(self.real_image)
-        _, real_uncertainty, real_depth = self.netT(real_refined_image)
         real_size = len(real_depth)
         gradient_smooth_loss = self.get_smooth_weight(real_depth[1:], self.real_image_scales, real_size-1)
         
@@ -392,6 +409,7 @@ class Solver():
         self.netT_loss.backward()
         self.reset_grad(exclude='netT')
         self.netT_optimizer.step()
+        self.netU_optimizer.step()
 
         self.set_requires_grad(self.netG, True)
         for disc in self.netD:
@@ -566,9 +584,9 @@ class Solver():
             for i,(data, depth_filenames) in tqdm(enumerate(self.real_val_dataloader)): 
                 self.real_val_image = data['left_img']#, data['depth'] # self.real_depth is a numpy array 
                 self.real_val_image = Variable(self.real_val_image.cuda())
+
                 _, real_recon_image = self.netG(self.real_val_image)
-                
-                _, _, depth = self.netT(real_recon_image)
+                _, depth = self.netT(real_recon_image)
                 depth = depth[-1]
                 depth_numpy = self.tensor2im(depth) # 0-80m
                 
@@ -579,14 +597,21 @@ class Solver():
 
                     _, self.real_val_sample_translated_images = self.netG(self.real_val_sample_images)
                     
-                    _, _, sample_depth = self.netT(self.real_val_sample_translated_images)
+                    _, sample_depth = self.netT(self.real_val_sample_translated_images)
+                    sample_uncertainty = self.netU(sample_depth)
+
                     sample_depth = sample_depth[-1]
                     sample_depth = sample_depth.data
                     sample_depth = (1.0+sample_depth)/2.0
+                    sample_uncertainty = sample_uncertainty[-1]
+
                     sample_depth_colorized = self.colorize(sample_depth,cmap=matplotlib.cm.get_cmap('plasma'))
+                    sample_uncertainty_colorized = self.colorize(sample_uncertainty,cmap=matplotlib.cm.get_cmap('hot'))
                     sample_depth_colorized = torch.from_numpy(sample_depth_colorized.squeeze()).permute(0,3,1,2)[:,:3,:,:]
+                    sample_uncertainty_colorized = torch.from_numpy(sample_uncertainty_colorized.squeeze()).permute(0,3,1,2)[:,:3,:,:]
                     self.writer.add_image('Real Translated Images',torchvision.utils.make_grid((1.0+self.real_val_sample_translated_images)/2.0,nrow=4), self.iteration)
                     self.writer.add_image('Predicted Depth',torchvision.utils.make_grid(sample_depth_colorized,nrow=4), self.iteration)
+                    self.writer.add_image('Predicted Uncertainty',torchvision.utils.make_grid(sample_uncertainty_colorized,nrow=4), self.iteration)
                     
                 for t_id in range(depth_numpy.shape[0]):
                     t_id_global = (i*self.batch_size)+t_id
@@ -616,7 +641,7 @@ class Solver():
                     crop_mask[self.crop[0]:self.crop[1],self.crop[2]:self.crop[3]] = 1
                     mask = np.logical_and(mask, crop_mask)
 
-                    
+
                     abs_rel[t_id_global], sq_rel[t_id_global], rmse[t_id_global], rmse_log[t_id_global], a1[t_id_global], a2[t_id_global], a3[t_id_global] = self.compute_errors(ground_depth[mask],predicted_depth[mask])
 
             print ('{:>10},{:>10},{:>10},{:>10},{:>10},{:>10},{:>10}'.format('abs_rel','sq_rel','rmse','rmse_log','a1','a2','a3'))

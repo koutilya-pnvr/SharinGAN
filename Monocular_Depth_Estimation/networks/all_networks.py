@@ -69,7 +69,7 @@ def init_weights(net, init_type='normal', gain=0.02):
             if hasattr(m, 'bias') and m.bias is not None:
                 init.constant_(m.bias.data, 0.0)
         elif classname.find('BatchNorm2d') != -1:
-            init.uniform_(m.weight.data, 1.0, gain)
+            init.uniform_(m.weight.data, gain, 1.0)
             init.constant_(m.bias.data, 0.0)
 
     print('initialize network with %s' % init_type)
@@ -112,12 +112,15 @@ def _unfreeze(*args):
 
 # define the generator(transform, task) network
 def define_G(input_nc, output_nc, ngf=64, layers=4, norm='batch', activation='PReLU', model_type='UNet',
-                    init_type='xavier', drop_rate=0, add_noise=False, gpu_ids=[], weight=0.1, uncertainty=False):
+                    init_type='xavier', drop_rate=0, add_noise=False, gpu_ids=[], weight=0.1):
 
     if model_type == 'ResNet':
         net = _ResGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids)
     elif model_type == 'UNet':
-        net = _UNetGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids, weight, uncertainty)
+        net = _UNetGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids, weight)
+        # net = _PreUNet16(input_nc, output_nc, ngf, layers, True, norm, activation, drop_rate, gpu_ids)
+    elif model_type == 'UncertaintyNet':
+        net = _UncertaintyNetGenerator(input_nc, output_nc, ngf, layers, norm, activation, drop_rate, add_noise, gpu_ids, weight)
         # net = _PreUNet16(input_nc, output_nc, ngf, layers, True, norm, activation, drop_rate, gpu_ids)
     else:
         raise NotImplementedError('model type [%s] is not implemented', model_type)
@@ -444,13 +447,12 @@ class _PreUNet16(nn.Module):
 
 class _UNetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64, layers=4, norm='batch', activation='PReLU', drop_rate=0, add_noise=False, gpu_ids=[],
-                 weight=0.1, uncertainty=False):
+                 weight=0.1):
         super(_UNetGenerator, self).__init__()
 
         self.gpu_ids = gpu_ids
         self.layers = layers
         self.weight = weight
-        self.uncertainty = uncertainty
         norm_layer = get_norm_layer(norm_type=norm)
         nonlinearity = get_nonlinearity_layer(activation_type=activation)
 
@@ -501,12 +503,6 @@ class _UNetGenerator(nn.Module):
         self.output2 = _OutputBlock(ngf*(1+1)+output_nc, output_nc, 3, use_bias)
         self.output1 = _OutputBlock(int(ngf/2)+output_nc, output_nc, 7, use_bias)
         
-        if self.uncertainty:
-            self.uncert4 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
-            self.uncert3 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
-            self.uncert2 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
-            self.uncert1 = _OutputBlock(output_nc, output_nc, 7, use_bias, non_linearity=nn.Sigmoid())
-
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
     def forward(self, input):
@@ -551,21 +547,7 @@ class _UNetGenerator(nn.Module):
         result.append(output1)
         deconv_result.append(0)
 
-        uncert_result = [center_in]
-        if self.uncertainty:
-            uncert4 = self.uncert4.forward(output4)
-            uncert_result.append(uncert4)
-                    
-            uncert3 = self.uncert3.forward(output3)
-            uncert_result.append(uncert3)
-                    
-            uncert2 = self.uncert2.forward(output2)
-            uncert_result.append(uncert2)
-                    
-            uncert1 = self.uncert1.forward(output1)
-            uncert_result.append(uncert1)
-                    
-        return deconv_result, uncert_result, result
+        return deconv_result, result
 
 
 class _MultiscaleDiscriminator(nn.Module):
@@ -671,3 +653,41 @@ class _FeatureDiscriminator(nn.Module):
         output = self.model(input)
         result.append(output)
         return result
+
+class _UncertaintyNetGenerator(nn.Module):
+    def __init__(self, input_nc, output_nc, ngf=64, layers=4, norm='batch', activation='PReLU', drop_rate=0, add_noise=False, gpu_ids=[],
+                 weight=0.1):
+        super(_UncertaintyNetGenerator, self).__init__()
+
+        self.gpu_ids = gpu_ids
+        self.layers = layers
+        self.weight = weight
+        norm_layer = get_norm_layer(norm_type=norm)
+
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm2d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm2d
+
+        self.uncert4 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
+        self.uncert3 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
+        self.uncert2 = _OutputBlock(output_nc, output_nc, 3, use_bias, non_linearity=nn.Sigmoid())
+        self.uncert1 = _OutputBlock(output_nc, output_nc, 7, use_bias, non_linearity=nn.Sigmoid())
+
+    def forward(self, outputs):
+        center_in, output4, output3, output2, output1 = outputs
+
+        uncert_result = [center_in]
+        uncert4 = self.uncert4.forward(output4)
+        uncert_result.append(uncert4)
+                
+        uncert3 = self.uncert3.forward(output3)
+        uncert_result.append(uncert3)
+                
+        uncert2 = self.uncert2.forward(output2)
+        uncert_result.append(uncert2)
+                
+        uncert1 = self.uncert1.forward(output1)
+        uncert_result.append(uncert1)
+
+        return uncert_result
