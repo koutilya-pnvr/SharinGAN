@@ -33,9 +33,9 @@
   </div>
 </div>
     <br>
-	<table align="center" width="900px">
+	<table align="center" width="100%">
         <tbody><tr>
-            <td align="center" width="900px">
+            <td align="center" width="100%">
                 <center>
                     <span style="font-size:22px"><a href="https://github.com/koutilya-pnvr/SharinGAN">Code</a></span>    
                     <span style="font-size:22px"><a href="https://openaccess.thecvf.com/content_CVPR_2020/html/PNVR_SharinGAN_Combining_Synthetic_and_Real_Data_for_Unsupervised_Geometry_Estimation_CVPR_2020_paper.html">Paper [CVPR 2020] </a> </span>    
@@ -56,25 +56,18 @@ We  propose  a  novel  method  for  combining  syntheticand real images when tra
                 <td width="75%"><!--600px-->
                   <center>
 					  <h2>Idea</h2>
-                      <a href="./introduction_new.pdf" target="new"><img src = "./introduction_new.jpg" width="35%"></img></href></a><br><!--500px-->
+                      <a href="./introduction_new.pdf" target="new"><img src = "./introduction_new.jpg" width="50%"></img></href></a><br><!--500px-->
+			
+						<i>We propose to reduce the domain gap between synthetic  and  real  by  mapping  the  corresponding  domain specific information related to the primary task (δ<sub>s</sub> , δ<sub>r</sub>) into shared information δ<sub>sh</sub>, preserving everything else.</i><br><br>
 					</center>
 					
                 </td>
             </tr>
-		
-			<tr>
-                <td width="75%"><!--600px-->
-                   <center> 
-                      <i>We propose to reduce the domain gap between synthetic  and  real  by  mapping  the  corresponding  domain specific information related to the primary task (δ<sub>s</sub> , δ<sub>r</sub>) into shared information δ<sub>sh</sub>, preserving everything else.</i><br><br>
-                 </center> 	
-                </td>
-            </tr>
-
             <tr>
                 <td width="100%"><!--600px-->
                   <center>
 					  <h2>Method</h2>
-                  		<a href="./SharinGAN_method.pdf" target = "new"><img src = "./SharinGAN_method.jpg" width="50%"></img></href></a><br><!--1000px-->
+                  		<a href="./SharinGAN_method.pdf" target = "new"><img src = "./SharinGAN_method.jpg" width="80%"></img></href></a><br><!--1000px-->
                 </center>
                 </td>
             </tr>
@@ -88,26 +81,11 @@ We  propose  a  novel  method  for  combining  syntheticand real images when tra
         </table>
 </div>
 
-    
-<div class="container">
-        <h2>Bibtex citation</h2>
-<!--        <p><span style="font-size:20px"><a href="https://arxiv.org/abs/2006.04026" target="_blank"><i class="fa fa-file-pdf-o" aria-hidden="true" style="font-size:24px; margin:10px;"></i>[Paper Arxiv]</a>, to appear in CVPR 2020</span></p>-->
-<pre class="citation">
-@InProceedings{PNVR_2020_CVPR,
-author = {PNVR, Koutilya and Zhou, Hao and Jacobs, David},
-title = {SharinGAN: Combining Synthetic and Real Data for Unsupervised Geometry Estimation},
-booktitle = {The IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-month = {June},
-year = {2020}
-}
-</pre>
-</div>
-
 
 
 <div class="container" >
-	<h1>Results</h1>
 	<center>
+		<h1>Results</h1>
 		<h2>Qualitative results for Monocular Depth Estimation on KITTI</h2>
     </center>
     <div>
@@ -134,12 +112,25 @@ year = {2020}
     <div>
          <center>
 			 <h2>Qualitative results for Face Normal Estimation</h2>
-            <a href="./fne_results1.pdf" target = "new"><img src="./fne_results1.jpg" width="40%"></img></href></a><br><!--500px-->
+            <a href="./fne_results1.pdf" target = "new"><img src="./fne_results1.jpg" width="65%"></img></href></a><br><!--500px-->
           </center>
             <span class="abstract">We also show the efficacy of our approach for predicting face normals and we qualitatively compare it with <a href="https://senguptaumd.github.io/SfSNet/" target="new">SfsNet</a> on the testset of the Photoface dataset.</span>        
      </div>
 </div>
 
+<div class="container">
+        <h2>Bibtex citation</h2>
+<!--        <p><span style="font-size:20px"><a href="https://arxiv.org/abs/2006.04026" target="_blank"><i class="fa fa-file-pdf-o" aria-hidden="true" style="font-size:24px; margin:10px;"></i>[Paper Arxiv]</a>, to appear in CVPR 2020</span></p>-->
+<pre class="citation">
+@InProceedings{PNVR_2020_CVPR,
+author = {PNVR, Koutilya and Zhou, Hao and Jacobs, David},
+title = {SharinGAN: Combining Synthetic and Real Data for Unsupervised Geometry Estimation},
+booktitle = {The IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+month = {June},
+year = {2020}
+}
+</pre>
+</div>
 
 <div class="container" >
   <h2>Contact</h2>
